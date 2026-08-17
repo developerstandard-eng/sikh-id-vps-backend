@@ -1,0 +1,141 @@
+-- Sikh ID master database schema
+-- Run once against an empty database: mysql -u root -p sikh_id_master < schema.sql
+
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  sikh_id VARCHAR(20) UNIQUE NOT NULL,
+  full_name VARCHAR(191) NOT NULL,
+  email VARCHAR(191) UNIQUE NOT NULL,
+  mobile VARCHAR(30) NULL,
+  country VARCHAR(100) NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  source_site VARCHAR(191) NULL,
+  profile_completion TINYINT UNSIGNED NOT NULL DEFAULT 15,
+  last_recalculated_at DATETIME NULL,
+  last_reminder_sent_at DATETIME NULL,
+  last_reminder_section VARCHAR(50) NULL,
+  reminder_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  status ENUM('active','suspended') NOT NULL DEFAULT 'active',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_completion (profile_completion),
+  INDEX idx_last_reminder (last_reminder_sent_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS profile_about (
+  user_id BIGINT UNSIGNED PRIMARY KEY,
+  photo_url VARCHAR(500) NULL,
+  date_of_birth DATE NULL,
+  dob_visibility ENUM('public','private') NOT NULL DEFAULT 'private',
+  city VARCHAR(191) NULL,
+  residence_country VARCHAR(100) NULL,
+  occupation_type VARCHAR(50) NULL,
+  CONSTRAINT fk_about_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS profile_professional (
+  user_id BIGINT UNSIGNED PRIMARY KEY,
+  job_title VARCHAR(191) NULL,
+  company VARCHAR(191) NULL,
+  industry VARCHAR(100) NULL,
+  experience_years TINYINT UNSIGNED NULL,
+  linkedin_url VARCHAR(500) NULL,
+  CONSTRAINT fk_prof_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_interests (
+  user_id BIGINT UNSIGNED NOT NULL,
+  interest_tag VARCHAR(50) NOT NULL,
+  PRIMARY KEY (user_id, interest_tag),
+  CONSTRAINT fk_interest_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_group_preferences (
+  user_id BIGINT UNSIGNED NOT NULL,
+  platform_name VARCHAR(50) NOT NULL,
+  subscribed BOOLEAN NOT NULL DEFAULT TRUE,
+  PRIMARY KEY (user_id, platform_name),
+  CONSTRAINT fk_grouppref_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS communication_preferences (
+  user_id BIGINT UNSIGNED PRIMARY KEY,
+  channel_email BOOLEAN NOT NULL DEFAULT TRUE,
+  channel_sms BOOLEAN NOT NULL DEFAULT FALSE,
+  channel_push BOOLEAN NOT NULL DEFAULT FALSE,
+  channel_whatsapp BOOLEAN NOT NULL DEFAULT FALSE,
+  topic_alerts BOOLEAN NOT NULL DEFAULT TRUE,
+  topic_community_news BOOLEAN NOT NULL DEFAULT TRUE,
+  topic_events BOOLEAN NOT NULL DEFAULT TRUE,
+  topic_business BOOLEAN NOT NULL DEFAULT TRUE,
+  topic_awards BOOLEAN NOT NULL DEFAULT TRUE,
+  topic_new_projects BOOLEAN NOT NULL DEFAULT TRUE,
+  CONSTRAINT fk_comm_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS directory_listing (
+  user_id BIGINT UNSIGNED PRIMARY KEY,
+  wants_listing BOOLEAN NOT NULL DEFAULT FALSE,
+  business_name VARCHAR(191) NULL,
+  website VARCHAR(500) NULL,
+  business_category VARCHAR(100) NULL,
+  city VARCHAR(191) NULL,
+  country VARCHAR(100) NULL,
+  description TEXT NULL,
+  contact_details VARCHAR(500) NULL,
+  CONSTRAINT fk_dir_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS email_events (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  email_type ENUM('auto_reminder','manual_campaign') NOT NULL,
+  section_key VARCHAR(50) NULL,
+  segment_id BIGINT UNSIGNED NULL,
+  template_key VARCHAR(100) NULL,
+  status ENUM('queued','sent','failed','bounced') NOT NULL DEFAULT 'queued',
+  sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_event_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_type (user_id, email_type),
+  INDEX idx_sent_at (sent_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS segments (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(191) NOT NULL,
+  description TEXT NULL,
+  filter_json JSON NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  token_hash VARCHAR(255) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_refresh_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Short-lived one-time codes used for the cross-domain SSO redirect handshake
+CREATE TABLE IF NOT EXISTS sso_codes (
+  code VARCHAR(64) PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  site_domain VARCHAR(191) NOT NULL,
+  redirect_uri VARCHAR(500) NOT NULL,
+  consumed BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NOT NULL,
+  CONSTRAINT fk_sso_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- The central login session (auth.thesikhgroup.com cookie) — lets a user hop
+-- to a second WP site without re-entering credentials
+CREATE TABLE IF NOT EXISTS central_sessions (
+  id VARCHAR(64) PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NOT NULL,
+  CONSTRAINT fk_central_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

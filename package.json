@@ -1,0 +1,32 @@
+{
+  "name": "sikh-id-central-auth",
+  "version": "1.0.0",
+  "description": "Central Sikh ID auth API, master profile database, reminder engine and segmentation for the Sikh Group WordPress network",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "worker": "node src/queue/reminderWorker.js",
+    "campaign-worker": "node src/queue/campaignWorker.js",
+    "cron": "node src/queue/scheduleReminders.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.600.0",
+    "bcryptjs": "^2.4.3",
+    "bullmq": "^5.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.9.7",
+    "node-cron": "^3.0.3",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
