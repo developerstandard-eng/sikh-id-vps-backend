@@ -84,4 +84,22 @@ async function listUsers(req, res) {
   res.json({ total, page: Number(page), pageSize: limit, users: rows });
 }
 
-module.exports = { getStats, listUsers };
+/**
+ * DELETE /api/v1/admin/users/:id
+ * Permanently removes a member and everything tied to their account
+ * (profile sections, interests, sessions, refresh tokens) — those tables
+ * all reference users.id with ON DELETE CASCADE. Meant for cleaning up
+ * test/duplicate accounts; there's no undo.
+ */
+async function deleteUser(req, res) {
+  const { id } = req.params;
+
+  const [result] = await db.query('DELETE FROM users WHERE id = :id', { id });
+  if (result.affectedRows === 0) {
+    return res.status(404).json({ error: 'not_found', message: 'No member with that id' });
+  }
+
+  res.json({ deleted: true, id: Number(id) });
+}
+
+module.exports = { getStats, listUsers, deleteUser };
