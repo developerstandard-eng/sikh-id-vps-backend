@@ -139,3 +139,61 @@ CREATE TABLE IF NOT EXISTS central_sessions (
   expires_at DATETIME NOT NULL,
   CONSTRAINT fk_central_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- Content & engagement: events, news corner, hukamnama
+-- Added to support admin-managed content shown on member dashboards.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS events (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(191) NOT NULL,
+  description TEXT NULL,
+  event_type ENUM('community','business','award','webinar','other') NOT NULL DEFAULT 'community',
+  location VARCHAR(191) NULL,
+  is_virtual BOOLEAN NOT NULL DEFAULT FALSE,
+  event_date DATE NOT NULL,
+  event_time VARCHAR(20) NULL,
+  image_url VARCHAR(500) NULL,
+  cta_label VARCHAR(100) NULL,
+  cta_url VARCHAR(500) NULL,
+  status ENUM('draft','published','cancelled') NOT NULL DEFAULT 'published',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_event_date (event_date),
+  INDEX idx_event_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS news_updates (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(191) NOT NULL,
+  body TEXT NOT NULL,
+  category ENUM('news','update','announcement','press') NOT NULL DEFAULT 'news',
+  image_url VARCHAR(500) NULL,
+  cta_label VARCHAR(100) NULL,
+  cta_url VARCHAR(500) NULL,
+  status ENUM('draft','published') NOT NULL DEFAULT 'published',
+  published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_news_published (published_at),
+  INDEX idx_news_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- One row per calendar date. Admin enters the day's authentic reading
+-- (sourced from Sri Darbar Sahib's own broadcast/publication) rather than
+-- this being generated — the Hukamnama must be the real day's Vaak, not
+-- fabricated text, so this table is a publishing tool, not a content
+-- generator.
+CREATE TABLE IF NOT EXISTS hukamnama (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  hukam_date DATE NOT NULL UNIQUE,
+  gurmukhi_text TEXT NULL,
+  transliteration TEXT NULL,
+  english_translation TEXT NULL,
+  source_name VARCHAR(191) NOT NULL DEFAULT 'Sri Darbar Sahib, Amritsar',
+  source_url VARCHAR(500) NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

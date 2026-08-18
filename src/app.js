@@ -8,6 +8,11 @@ const authRoutes = require('./routes/auth.routes');
 const profileRoutes = require('./routes/profile.routes');
 const segmentsRoutes = require('./routes/segments.routes');
 const campaignsRoutes = require('./routes/campaigns.routes');
+const adminRoutes = require('./routes/admin.routes');
+const adminEventsRoutes = require('./routes/admin-events.routes');
+const adminNewsRoutes = require('./routes/admin-news.routes');
+const adminHukamnamaRoutes = require('./routes/admin-hukamnama.routes');
+const contentRoutes = require('./routes/content.routes');
 
 const app = express();
 
@@ -41,6 +46,11 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/profile', profileRoutes);
 app.use('/api/v1/segments', segmentsRoutes);
 app.use('/api/v1/campaigns', campaignsRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/admin/events', adminEventsRoutes);
+app.use('/api/v1/admin/news', adminNewsRoutes);
+app.use('/api/v1/admin/hukamnama', adminHukamnamaRoutes);
+app.use('/api/v1/content', contentRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'not_found' }));
 
