@@ -19,8 +19,13 @@ const app = express();
 app.use(helmet());
 app.use(express.json({ limit: '2mb' }));
 
-// Only allow requests from the WP network domains + the admin dashboard origin
-const allowedOrigins = (process.env.ALLOWED_SITE_DOMAINS || '').split(',').map((d) => `https://${d.trim()}`);
+// Only allow requests from the WP network domains + the admin dashboard origin.
+// Entries may be a bare domain (assumed https://) or a full origin (e.g. an
+// IP:port used for pre-DNS testing), so both forms are accepted here.
+const allowedOrigins = (process.env.ALLOWED_SITE_DOMAINS || '').split(',').map((d) => {
+  const trimmed = d.trim();
+  return /^https?:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`;
+});
 app.use(
   cors({
     origin: (origin, callback) => {
