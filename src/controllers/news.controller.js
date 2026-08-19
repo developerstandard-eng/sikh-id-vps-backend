@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { notifyAllActiveUsers } = require('../services/notification.service');
 
 /** GET /api/v1/admin/news */
 async function adminList(req, res) {
@@ -20,6 +21,11 @@ async function adminCreate(req, res) {
       published_at: published_at || new Date(),
     }
   );
+
+  if ((status || 'published') === 'published') {
+    await notifyAllActiveUsers('📰', title);
+  }
+
   res.status(201).json({ id: result.insertId });
 }
 
@@ -51,15 +57,18 @@ async function adminRemove(req, res) {
 async function publicList(req, res) {
   const { category, limit = 10 } = req.query;
   const where = ["status = 'published'"];
-  const params = {};
+  const params = { userId: req.user.id };
   if (category) {
     where.push('category = :category');
     params.category = category;
   }
 
   const [rows] = await db.query(
-    `SELECT id, title, body, category, image_url, cta_label, cta_url, published_at
-     FROM news_updates WHERE ${where.join(' AND ')} ORDER BY published_at DESC LIMIT ${Math.min(Number(limit) || 10, 50)}`,
+    `SELECT n.id, n.title, n.body, n.category, n.image_url, n.cta_label, n.cta_url, n.published_at,
+            (s.user_id IS NOT NULL) AS saved
+     FROM news_updates n
+     LEFT JOIN saved_items s ON s.item_type = 'news' AND s.item_id = n.id AND s.user_id = :userId
+     WHERE ${where.join(' AND ')} ORDER BY n.published_at DESC LIMIT ${Math.min(Number(limit) || 10, 50)}`,
     params
   );
   res.json(rows);

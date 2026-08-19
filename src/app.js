@@ -14,6 +14,8 @@ const adminEventsRoutes = require('./routes/admin-events.routes');
 const adminNewsRoutes = require('./routes/admin-news.routes');
 const adminHukamnamaRoutes = require('./routes/admin-hukamnama.routes');
 const contentRoutes = require('./routes/content.routes');
+const messagesRoutes = require('./routes/messages.routes');
+const supportRoutes = require('./routes/support.routes');
 
 const app = express();
 
@@ -69,6 +71,8 @@ app.use('/api/v1/admin/events', adminEventsRoutes);
 app.use('/api/v1/admin/news', adminNewsRoutes);
 app.use('/api/v1/admin/hukamnama', adminHukamnamaRoutes);
 app.use('/api/v1/content', contentRoutes);
+app.use('/api/v1/messages', messagesRoutes);
+app.use('/api/v1/support', supportRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'not_found' }));
 

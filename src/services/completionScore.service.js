@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { logActivity } = require('./activity.service');
 
 /**
  * Weighted profile sections, matching the staged Sikh ID form:
@@ -60,6 +61,7 @@ async function getSectionStatus(userId) {
  * group_preferences/communication_preferences/directory_listing.
  */
 async function recalculate(userId) {
+  const [[before]] = await db.query('SELECT profile_completion FROM users WHERE id = :id', { id: userId });
   const status = await getSectionStatus(userId);
 
   let total = 0;
@@ -72,6 +74,10 @@ async function recalculate(userId) {
     'UPDATE users SET profile_completion = :pct, last_recalculated_at = NOW() WHERE id = :id',
     { pct: total, id: userId }
   );
+
+  if (before && total > before.profile_completion) {
+    await logActivity(userId, '📈', `Profile completion increased to ${total}%`);
+  }
 
   return { completion: total, sections: status };
 }

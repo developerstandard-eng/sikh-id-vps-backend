@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const { SECTIONS, getSectionStatus, nextIncompleteSection } = require('./completionScore.service');
 const { sendEmail } = require('./email.service');
+const { notifyUser } = require('./notification.service');
 
 // Per-section copy for the reminder email — keeps the nudge specific
 // instead of a generic "finish your profile" blast.
@@ -110,6 +111,8 @@ async function sendReminderToUser(user, appBaseUrl) {
      WHERE id = :id`,
     { section, id: user.id }
   );
+
+  await notifyUser(user.id, '🔔', copy.subject);
 
   return section;
 }
