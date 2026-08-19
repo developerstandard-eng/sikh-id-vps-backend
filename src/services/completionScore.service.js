@@ -26,18 +26,31 @@ async function getSectionStatus(userId) {
   const [[commPrefs]] = await db.query('SELECT * FROM communication_preferences WHERE user_id = :id', { id: userId });
   const [[directory]] = await db.query('SELECT * FROM directory_listing WHERE user_id = :id', { id: userId });
 
+  const basic_identity = !!(user && user.full_name && user.email && user.mobile && user.country);
+  const about_you = !!(about && about.photo_url && about.city && about.occupation_type);
+  const professional_done = !!(professional && professional.job_title && professional.company && professional.industry);
+  const interests_done = interests.length > 0;
+  const group_preferences = groupPrefs.length > 0;
+  const communication_preferences = !!commPrefs;
+  // Directory listing is optional by design — "opted in with details" OR
+  // "explicitly said no" both count as the section being resolved, so
+  // users who don't want a listing aren't nagged forever.
+  const community_profile = !!(directory && (directory.wants_listing === 0 || (directory.wants_listing === 1 && directory.business_name)));
+
   return {
-    basic_identity: !!(user && user.full_name && user.email && user.mobile && user.country),
-    about_you: !!(about && about.photo_url && about.city && about.occupation_type),
-    professional: !!(professional && professional.job_title && professional.company && professional.industry),
-    interests: interests.length > 0,
-    group_preferences: groupPrefs.length > 0,
-    communication_preferences: !!commPrefs,
-    // Directory listing is optional by design — "opted in with details" OR
-    // "explicitly said no" both count as the section being resolved, so
-    // users who don't want a listing aren't nagged forever.
-    community_profile: !!(directory && (directory.wants_listing === 0 || (directory.wants_listing === 1 && directory.business_name))),
-    final_confirmation: !!(user && user.profile_completion >= 95),
+    basic_identity,
+    about_you,
+    professional: professional_done,
+    interests: interests_done,
+    group_preferences,
+    communication_preferences,
+    community_profile,
+    // The wizard's final screen, not a field the user fills in — must be
+    // derived from the other flags computed in this same pass, not from
+    // the stored profile_completion (which is still the pre-update value
+    // at this point and would always be one step behind).
+    final_confirmation:
+      basic_identity && about_you && professional_done && interests_done && group_preferences && communication_preferences && community_profile,
   };
 }
 
