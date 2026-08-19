@@ -205,15 +205,21 @@ async function forgotPassword(req, res) {
       { userId: user.id, tokenHash }
     );
 
-    await sendEmail({
-      to: user.email,
-      subject: 'Reset your Sikh ID password',
-      templateKey: 'password-reset',
-      vars: {
-        full_name: user.full_name,
-        reset_url: `${process.env.APP_BASE_URL}/reset-password?token=${rawToken}`,
-      },
-    });
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Reset your Sikh ID password',
+        templateKey: 'password-reset',
+        vars: {
+          full_name: user.full_name,
+          reset_url: `${process.env.APP_BASE_URL}/reset-password?token=${rawToken}`,
+        },
+      });
+    } catch (err) {
+      // The token is already stored — a delivery failure shouldn't break the
+      // request or leak into the generic response below.
+      console.error('forgot-password: sendEmail failed', err);
+    }
   }
 
   res.json({ message: 'If an account exists for that email, a reset link has been sent.' });
@@ -264,12 +270,16 @@ async function requestLoginOtp(req, res) {
       { userId: user.id, codeHash }
     );
 
-    await sendEmail({
-      to: user.email,
-      subject: 'Your Sikh ID login code',
-      templateKey: 'login-otp',
-      vars: { full_name: user.full_name, otp_code: code },
-    });
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Your Sikh ID login code',
+        templateKey: 'login-otp',
+        vars: { full_name: user.full_name, otp_code: code },
+      });
+    } catch (err) {
+      console.error('otp-request: sendEmail failed', err);
+    }
   }
 
   res.json({ message: 'If an account exists for that email, a login code has been sent.' });
