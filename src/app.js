@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -46,6 +47,18 @@ app.use('/api/v1/auth/login', authLimiter);
 app.use('/api/v1/auth/register', authLimiter);
 
 app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+
+// Avatar images need to load cross-origin in an <img> tag on the dashboard's
+// own domain — helmet's default same-origin Cross-Origin-Resource-Policy
+// would otherwise block that for this one path.
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  },
+  express.static(path.join(__dirname, '..', 'uploads'))
+);
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/profile', profileRoutes);

@@ -46,6 +46,26 @@ async function updateAbout(req, res) {
   res.json(result);
 }
 
+/** POST /api/v1/profile/photo — multipart upload, sets profile_about.photo_url */
+async function uploadPhoto(req, res) {
+  const userId = req.user.id;
+  if (!req.file) {
+    return res.status(400).json({ error: 'invalid_file', message: 'Attach a JPEG, PNG or WEBP image under 5MB as "photo"' });
+  }
+
+  const photoUrl = `${process.env.API_BASE_URL}/uploads/avatars/${req.file.filename}`;
+
+  await db.query(
+    `INSERT INTO profile_about (user_id, photo_url)
+     VALUES (:userId, :photoUrl)
+     ON DUPLICATE KEY UPDATE photo_url = VALUES(photo_url)`,
+    { userId, photoUrl }
+  );
+
+  const result = await recalculate(userId);
+  res.json({ photo_url: photoUrl, ...result });
+}
+
 /** PATCH /api/v1/profile/professional — stage 3 (45%) */
 async function updateProfessional(req, res) {
   const userId = req.user.id;
@@ -154,6 +174,6 @@ async function updateCommunityProfile(req, res) {
 }
 
 module.exports = {
-  getMe, updateAbout, updateProfessional, updateInterests,
+  getMe, updateAbout, uploadPhoto, updateProfessional, updateInterests,
   updateGroupPreferences, updateCommunicationPreferences, updateCommunityProfile,
 };
