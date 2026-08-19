@@ -5,6 +5,8 @@ const { uploadAvatar } = require('../middleware/upload');
 const ctrl = require('../controllers/profile.controller');
 
 router.get('/me', requireAuth, ctrl.getMe);
+router.patch('/account', requireAuth, ctrl.updateAccount);
+router.patch('/privacy', requireAuth, ctrl.updatePrivacy);
 router.patch('/about', requireAuth, ctrl.updateAbout);
 router.post('/photo', requireAuth, uploadAvatar.single('photo'), ctrl.uploadPhoto);
 router.patch('/professional', requireAuth, ctrl.updateProfessional);

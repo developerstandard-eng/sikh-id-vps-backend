@@ -250,6 +250,31 @@ async function resetPassword(req, res) {
 }
 
 /**
+ * POST /api/v1/auth/change-password — Settings > Account tab. Requires the
+ * current password (unlike reset-password, which only needs a valid emailed
+ * token) since the user is already logged in and just proving it's really
+ * them, not recovering a lost password.
+ */
+async function changePassword(req, res) {
+  const { current_password, new_password } = req.body;
+  if (!current_password || !new_password) return res.status(400).json({ error: 'missing_fields' });
+  if (new_password.length < 8) {
+    return res.status(400).json({ error: 'weak_password', message: 'Password must be at least 8 characters' });
+  }
+
+  const [[user]] = await db.query('SELECT * FROM users WHERE id = :id', { id: req.user.id });
+  const valid = await bcrypt.compare(current_password, user.password_hash);
+  if (!valid) return res.status(401).json({ error: 'invalid_credentials', message: 'Current password is incorrect' });
+
+  const passwordHash = await bcrypt.hash(new_password, 12);
+  await db.query('UPDATE users SET password_hash = :passwordHash WHERE id = :id', { passwordHash, id: user.id });
+  // Same as reset-password — a password change signs out every other session.
+  await db.query('DELETE FROM refresh_tokens WHERE user_id = :id', { id: user.id });
+
+  res.json({ message: 'Password updated.' });
+}
+
+/**
  * POST /api/v1/auth/otp/request
  * Same enumeration-safe shape as forgot-password: always 200.
  */
@@ -332,6 +357,7 @@ module.exports = {
   ssoExchange,
   forgotPassword,
   resetPassword,
+  changePassword,
   requestLoginOtp,
   verifyLoginOtp,
 };

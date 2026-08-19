@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_reminder_sent_at DATETIME NULL,
   last_reminder_section VARCHAR(50) NULL,
   reminder_attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  allow_direct_messages BOOLEAN NOT NULL DEFAULT TRUE,
   status ENUM('active','suspended') NOT NULL DEFAULT 'active',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

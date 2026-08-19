@@ -5,7 +5,7 @@ const { recalculate, getSectionStatus } = require('../services/completionScore.s
 async function getMe(req, res) {
   const userId = req.user.id;
   const [[user]] = await db.query(
-    'SELECT id, sikh_id, full_name, email, mobile, country, profile_completion, created_at FROM users WHERE id = :id',
+    'SELECT id, sikh_id, full_name, email, mobile, country, profile_completion, allow_direct_messages, created_at FROM users WHERE id = :id',
     { id: userId }
   );
   const [[about]] = await db.query('SELECT * FROM profile_about WHERE user_id = :id', { id: userId });
@@ -64,6 +64,53 @@ async function uploadPhoto(req, res) {
 
   const result = await recalculate(userId);
   res.json({ photo_url: photoUrl, ...result });
+}
+
+/** PATCH /api/v1/profile/account — Settings > Account tab (name/mobile/country only, not email/password) */
+async function updateAccount(req, res) {
+  const userId = req.user.id;
+  const { full_name, mobile, country } = req.body;
+  if (!full_name) return res.status(400).json({ error: 'missing_fields', message: 'full_name is required' });
+
+  await db.query(
+    'UPDATE users SET full_name = :full_name, mobile = :mobile, country = :country WHERE id = :id',
+    { id: userId, full_name, mobile: mobile || null, country: country || null }
+  );
+
+  const result = await recalculate(userId);
+  res.json(result);
+}
+
+/**
+ * PATCH /api/v1/profile/privacy — Settings > Privacy tab. Touches only the
+ * specific columns named here (dob_visibility, wants_listing on
+ * directory_listing, allow_direct_messages) rather than the full
+ * updateCommunityProfile upsert, so this can't blank out a business
+ * listing's other fields when the user just flips a toggle.
+ */
+async function updatePrivacy(req, res) {
+  const userId = req.user.id;
+  const { dob_visibility, wants_listing, allow_direct_messages } = req.body;
+
+  if (dob_visibility) {
+    await db.query(
+      `INSERT INTO profile_about (user_id, dob_visibility) VALUES (:userId, :dob_visibility)
+       ON DUPLICATE KEY UPDATE dob_visibility = VALUES(dob_visibility)`,
+      { userId, dob_visibility }
+    );
+  }
+  if (wants_listing != null) {
+    await db.query(
+      `INSERT INTO directory_listing (user_id, wants_listing) VALUES (:userId, :wants_listing)
+       ON DUPLICATE KEY UPDATE wants_listing = VALUES(wants_listing)`,
+      { userId, wants_listing: wants_listing ? 1 : 0 }
+    );
+  }
+  if (allow_direct_messages != null) {
+    await db.query('UPDATE users SET allow_direct_messages = :v WHERE id = :id', { id: userId, v: allow_direct_messages ? 1 : 0 });
+  }
+
+  res.json({ saved: true });
 }
 
 /** PATCH /api/v1/profile/professional — stage 3 (45%) */
@@ -174,6 +221,6 @@ async function updateCommunityProfile(req, res) {
 }
 
 module.exports = {
-  getMe, updateAbout, uploadPhoto, updateProfessional, updateInterests,
+  getMe, updateAccount, updatePrivacy, updateAbout, uploadPhoto, updateProfessional, updateInterests,
   updateGroupPreferences, updateCommunicationPreferences, updateCommunityProfile,
 };
