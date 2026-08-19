@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { fetchAndStoreTodayHukamnama } = require('../services/hukamnama.service');
 
 /**
  * POST /api/v1/admin/hukamnama
@@ -59,6 +60,19 @@ async function publicToday(req, res) {
     'SELECT * FROM hukamnama WHERE hukam_date = CURDATE() AND is_active = 1 LIMIT 1'
   );
   if (today) return res.json(today);
+
+  // Nobody's posted today's entry yet (admin or otherwise) — pull it live
+  // from Sri Darbar Sahib's public feed so the banner still shows the real
+  // day's reading instead of yesterday's.
+  try {
+    await fetchAndStoreTodayHukamnama();
+    const [[justFetched]] = await db.query(
+      'SELECT * FROM hukamnama WHERE hukam_date = CURDATE() AND is_active = 1 LIMIT 1'
+    );
+    if (justFetched) return res.json(justFetched);
+  } catch (err) {
+    console.error('publicToday: auto-fetch failed', err);
+  }
 
   const [[latest]] = await db.query(
     'SELECT * FROM hukamnama WHERE is_active = 1 ORDER BY hukam_date DESC LIMIT 1'
