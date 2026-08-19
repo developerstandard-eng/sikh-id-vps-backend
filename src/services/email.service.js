@@ -4,11 +4,15 @@ const nodemailer = require('nodemailer');
 
 const TEMPLATE_DIR = path.join(__dirname, '..', 'templates', 'email');
 
+// Plain SMTP transport so the email provider (Brevo, Gmail, SES's SMTP
+// interface, etc.) is just an env var swap — no code change to switch.
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: Number(process.env.SMTP_PORT) === 465,
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASSWORD,
   },
 });
 
@@ -21,13 +25,11 @@ function renderTemplate(templateKey, vars = {}) {
   return html;
 }
 
-// Gmail SMTP always sends from the authenticated account (GMAIL_USER) —
-// unlike SES it won't let you send as an arbitrary verified domain address.
 async function sendEmail({ to, subject, templateKey, vars }) {
   const html = renderTemplate(templateKey, vars);
 
   return transporter.sendMail({
-    from: `${process.env.EMAIL_FROM_NAME || 'The Sikh ID'} <${process.env.GMAIL_USER}>`,
+    from: `${process.env.EMAIL_FROM_NAME || 'The Sikh ID'} <${process.env.EMAIL_FROM_EMAIL || process.env.SMTP_USER}>`,
     to,
     subject,
     html,
