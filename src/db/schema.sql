@@ -130,6 +130,31 @@ CREATE TABLE IF NOT EXISTS sso_codes (
   CONSTRAINT fk_sso_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  token_hash VARCHAR(255) NOT NULL,
+  consumed BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NOT NULL,
+  CONSTRAINT fk_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_reset_token (token_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- One row per requested code; a new /otp/request wipes any earlier
+-- unconsumed code for the same user so only the latest one ever verifies.
+CREATE TABLE IF NOT EXISTS login_otps (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  code_hash VARCHAR(255) NOT NULL,
+  attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  consumed BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at DATETIME NOT NULL,
+  CONSTRAINT fk_otp_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_otp_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- The central login session (auth.thesikhgroup.com cookie) — lets a user hop
 -- to a second WP site without re-entering credentials
 CREATE TABLE IF NOT EXISTS central_sessions (

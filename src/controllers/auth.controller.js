@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const db = require('../config/db');
 const { recalculate } = require('../services/completionScore.service');
+const { sendEmail } = require('../services/email.service');
 
 function generateSikhId(numericId) {
   return `TSG-${10000 + Number(numericId)}`;
@@ -184,4 +185,143 @@ async function ssoExchange(req, res) {
   });
 }
 
-module.exports = { register, login, refresh, ssoAuthorize, ssoExchange };
+/**
+ * POST /api/v1/auth/forgot-password
+ * Always responds with a generic 200 regardless of whether the email is on
+ * file, so this can't be used to enumerate registered accounts.
+ */
+async function forgotPassword(req, res) {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'missing_fields' });
+
+  const [[user]] = await db.query('SELECT * FROM users WHERE email = :email AND status = "active"', { email });
+
+  if (user) {
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    await db.query(
+      `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+       VALUES (:userId, :tokenHash, DATE_ADD(NOW(), INTERVAL 30 MINUTE))`,
+      { userId: user.id, tokenHash }
+    );
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Reset your Sikh ID password',
+      templateKey: 'password-reset',
+      vars: {
+        full_name: user.full_name,
+        reset_url: `${process.env.APP_BASE_URL}/reset-password?token=${rawToken}`,
+      },
+    });
+  }
+
+  res.json({ message: 'If an account exists for that email, a reset link has been sent.' });
+}
+
+/** POST /api/v1/auth/reset-password */
+async function resetPassword(req, res) {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: 'missing_fields' });
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'weak_password', message: 'Password must be at least 8 characters' });
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const [[stored]] = await db.query(
+    'SELECT * FROM password_reset_tokens WHERE token_hash = :tokenHash AND consumed = 0 AND expires_at > NOW()',
+    { tokenHash }
+  );
+  if (!stored) return res.status(401).json({ error: 'invalid_or_expired_token' });
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  await db.query('UPDATE users SET password_hash = :passwordHash WHERE id = :id', { passwordHash, id: stored.user_id });
+  await db.query('UPDATE password_reset_tokens SET consumed = 1 WHERE id = :id', { id: stored.id });
+  // A password reset means any device holding an old refresh token should be signed out.
+  await db.query('DELETE FROM refresh_tokens WHERE user_id = :id', { id: stored.user_id });
+
+  res.json({ message: 'Password updated. Please log in with your new password.' });
+}
+
+/**
+ * POST /api/v1/auth/otp/request
+ * Same enumeration-safe shape as forgot-password: always 200.
+ */
+async function requestLoginOtp(req, res) {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'missing_fields' });
+
+  const [[user]] = await db.query('SELECT * FROM users WHERE email = :email AND status = "active"', { email });
+
+  if (user) {
+    const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+
+    await db.query('DELETE FROM login_otps WHERE user_id = :userId AND consumed = 0', { userId: user.id });
+    await db.query(
+      `INSERT INTO login_otps (user_id, code_hash, expires_at)
+       VALUES (:userId, :codeHash, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
+      { userId: user.id, codeHash }
+    );
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Your Sikh ID login code',
+      templateKey: 'login-otp',
+      vars: { full_name: user.full_name, otp_code: code },
+    });
+  }
+
+  res.json({ message: 'If an account exists for that email, a login code has been sent.' });
+}
+
+/** POST /api/v1/auth/otp/verify */
+async function verifyLoginOtp(req, res) {
+  const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ error: 'missing_fields' });
+
+  const [[user]] = await db.query('SELECT * FROM users WHERE email = :email AND status = "active"', { email });
+  if (!user) return res.status(401).json({ error: 'invalid_or_expired_code' });
+
+  const [[otp]] = await db.query(
+    'SELECT * FROM login_otps WHERE user_id = :userId AND consumed = 0 AND expires_at > NOW() ORDER BY id DESC LIMIT 1',
+    { userId: user.id }
+  );
+  if (!otp) return res.status(401).json({ error: 'invalid_or_expired_code' });
+
+  if (otp.attempts >= 5) {
+    return res.status(401).json({ error: 'too_many_attempts', message: 'Request a new code' });
+  }
+
+  const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+  if (codeHash !== otp.code_hash) {
+    await db.query('UPDATE login_otps SET attempts = attempts + 1 WHERE id = :id', { id: otp.id });
+    return res.status(401).json({ error: 'invalid_or_expired_code' });
+  }
+
+  await db.query('UPDATE login_otps SET consumed = 1 WHERE id = :id', { id: otp.id });
+
+  const { accessToken, refreshToken } = issueTokens(user);
+  await storeRefreshToken(user.id, refreshToken);
+
+  res.json({
+    sikh_id: user.sikh_id,
+    full_name: user.full_name,
+    email: user.email,
+    profile_completion: user.profile_completion,
+    accessToken,
+    refreshToken,
+  });
+}
+
+module.exports = {
+  register,
+  login,
+  refresh,
+  ssoAuthorize,
+  ssoExchange,
+  forgotPassword,
+  resetPassword,
+  requestLoginOtp,
+  verifyLoginOtp,
+};
