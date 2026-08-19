@@ -1,9 +1,16 @@
 const fs = require('fs');
 const path = require('path');
-const { SendEmailCommand } = require('@aws-sdk/client-ses');
-const ses = require('../config/ses');
+const nodemailer = require('nodemailer');
 
 const TEMPLATE_DIR = path.join(__dirname, '..', 'templates', 'email');
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
 
 function renderTemplate(templateKey, vars = {}) {
   const filePath = path.join(TEMPLATE_DIR, `${templateKey}.html`);
@@ -14,19 +21,17 @@ function renderTemplate(templateKey, vars = {}) {
   return html;
 }
 
+// Gmail SMTP always sends from the authenticated account (GMAIL_USER) —
+// unlike SES it won't let you send as an arbitrary verified domain address.
 async function sendEmail({ to, subject, templateKey, vars }) {
   const html = renderTemplate(templateKey, vars);
 
-  const command = new SendEmailCommand({
-    Source: `${process.env.SES_FROM_NAME} <${process.env.SES_FROM_EMAIL}>`,
-    Destination: { ToAddresses: [to] },
-    Message: {
-      Subject: { Data: subject, Charset: 'UTF-8' },
-      Body: { Html: { Data: html, Charset: 'UTF-8' } },
-    },
+  return transporter.sendMail({
+    from: `${process.env.EMAIL_FROM_NAME || 'The Sikh ID'} <${process.env.GMAIL_USER}>`,
+    to,
+    subject,
+    html,
   });
-
-  return ses.send(command);
 }
 
 module.exports = { sendEmail, renderTemplate };
