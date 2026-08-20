@@ -16,6 +16,7 @@ const adminHukamnamaRoutes = require('./routes/admin-hukamnama.routes');
 const contentRoutes = require('./routes/content.routes');
 const messagesRoutes = require('./routes/messages.routes');
 const supportRoutes = require('./routes/support.routes');
+const verifyRoutes = require('./routes/verify.routes');
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.use('/api/v1/admin/hukamnama', adminHukamnamaRoutes);
 app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/messages', messagesRoutes);
 app.use('/api/v1/support', supportRoutes);
+app.use('/api/v1/verify', verifyRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'not_found' }));
 
