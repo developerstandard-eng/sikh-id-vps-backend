@@ -6,7 +6,7 @@ const { recalculate } = require('../services/completionScore.service');
 const { sendEmail } = require('../services/email.service');
 
 function generateSikhId(numericId) {
-  return `TSG-${10000 + Number(numericId)}`;
+  return `TSID-${10000 + Number(numericId)}`;
 }
 
 function issueTokens(user) {
@@ -62,6 +62,21 @@ async function register(req, res) {
   const [[user]] = await db.query('SELECT * FROM users WHERE id = :id', { id: result.insertId });
   const { accessToken, refreshToken } = issueTokens(user);
   await storeRefreshToken(user.id, refreshToken);
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: 'Welcome to The Sikh ID — Your Account Is Ready',
+      templateKey: 'welcome',
+      vars: {
+        first_name: user.full_name.split(' ')[0],
+        sikh_id: user.sikh_id,
+        dashboard_url: `${process.env.APP_BASE_URL}/dashboard`,
+      },
+    });
+  } catch (err) {
+    console.error('register: welcome sendEmail failed', err); // delivery failure doesn't break signup
+  }
 
   res.status(201).json({
     sikh_id: user.sikh_id,
