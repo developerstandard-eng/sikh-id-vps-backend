@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<body style="margin:0;padding:0;background:#f4f4f2;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f2;padding:24px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;">
+        <tr><td style="background:#0d1b3d;padding:20px 32px;">
+          <span style="color:#ffffff;font-size:18px;font-weight:bold;">THE SIKH <span style="color:#f5821f;">ID</span></span>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <h2 style="font-size:20px;color:#0d1b3d;margin:0 0 4px;">New Nomination — {{form_title}}</h2>
+          <p style="font-size:13px;color:#888;margin:0 0 20px;">Submitted on {{site_domain}}</p>
+
+          <table cellpadding="0" cellspacing="0" style="background:#fff7ee;border:1px solid #f3d9b3;border-radius:8px;margin:0 0 20px;width:100%;">
+            <tr><td style="padding:14px 20px;">
+              <span style="font-size:11px;color:#c17b1f;text-transform:uppercase;letter-spacing:0.04em;">Submitted by</span><br>
+              <span style="font-size:15px;color:#0d1b3d;font-weight:bold;">{{submitter_name}}</span><br>
+              <span style="font-size:13px;color:#444;">{{submitter_email}} &middot; {{submitter_sikh_id}}</span>
+            </td></tr>
+          </table>
+
+          <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+            {{fields_rows}}
+          </table>
+
+          <p style="font-size:13px;color:#888;line-height:1.6;margin:24px 0 0;">The full submission is also available in the admin dashboard's Nominations page.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

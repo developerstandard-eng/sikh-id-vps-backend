@@ -309,3 +309,40 @@ CREATE TABLE IF NOT EXISTS activity_log (
   CONSTRAINT fk_activity_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_activity_user (user_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- Nominations: per-site configurable "nominate someone" forms,
+-- shown to new members right after sign-up on sites that opt in.
+-- ============================================================
+
+-- One row per WordPress site. fields_json defines that site's form —
+-- each site's nomination categories/fields differ, so the shape is admin
+-- configurable per site.domain instead of a fixed set of columns:
+--   [{ "key": "award_category", "label": "Award category", "type": "select",
+--      "required": true, "options": ["Sikhs in Business", ...] }, ...]
+-- Supported types: text, email, tel, textarea, date, select, url.
+CREATE TABLE IF NOT EXISTS nomination_forms (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  site_domain VARCHAR(191) UNIQUE NOT NULL,
+  title VARCHAR(191) NOT NULL DEFAULT 'To Nominate',
+  fields_json JSON NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- One row per submission. `data` holds whatever fields that site's form
+-- defined at submission time (key -> submitted value), since the field set
+-- varies by site_domain/form_id — same reasoning as fields_json above.
+CREATE TABLE IF NOT EXISTS nominations (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  form_id BIGINT UNSIGNED NOT NULL,
+  site_domain VARCHAR(191) NOT NULL,
+  data JSON NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_nomination_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_nomination_form FOREIGN KEY (form_id) REFERENCES nomination_forms(id) ON DELETE CASCADE,
+  INDEX idx_nomination_site (site_domain, created_at),
+  INDEX idx_nomination_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
