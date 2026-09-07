@@ -104,9 +104,15 @@ async function submit(req, res) {
   const notifyTo = process.env.NOMINATION_NOTIFY_EMAIL;
   if (notifyTo) {
     try {
+      // Each field stacks label above value (rather than a two-column row) so
+      // long labels/answers (e.g. Seva descriptions) don't squeeze the value
+      // column into an unreadable wrap on narrow/mobile mail clients.
       const rowsHtml = fields
         .filter((f) => cleanData[f.key])
-        .map((f) => `<tr><td style="padding:6px 12px;color:#888;font-size:13px;white-space:nowrap;">${escapeHtml(f.label)}</td><td style="padding:6px 12px;color:#0d1b3d;font-size:13px;">${escapeHtml(cleanData[f.key])}</td></tr>`)
+        .map((f) => `<tr><td style="padding:10px 0;border-bottom:1px solid #eeeeee;">
+              <div style="font-size:11px;color:#999999;text-transform:uppercase;letter-spacing:0.03em;margin:0 0 3px;">${escapeHtml(f.label)}</div>
+              <div style="font-size:14px;color:#0d1b3d;line-height:1.5;word-break:break-word;">${escapeHtml(cleanData[f.key])}</div>
+            </td></tr>`)
         .join('');
 
       const [[submitter]] = await db.query('SELECT full_name, email, sikh_id FROM users WHERE id = :id', { id: req.user.id });
